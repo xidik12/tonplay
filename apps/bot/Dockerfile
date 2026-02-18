@@ -13,9 +13,6 @@ COPY apps/bot/package.json apps/bot/
 # Install dependencies (ignore scripts to avoid prisma postinstall issues)
 RUN pnpm install --frozen-lockfile --ignore-scripts
 
-# Manually run necessary postinstall scripts
-RUN node node_modules/esbuild/install.js 2>/dev/null || true
-
 # Copy prisma schema from API (bot uses @prisma/client)
 COPY apps/api/prisma apps/bot/prisma/
 
@@ -23,12 +20,14 @@ COPY apps/api/prisma apps/bot/prisma/
 COPY packages/shared packages/shared
 COPY apps/bot apps/bot
 
-# Build
+# Build shared package first
 RUN pnpm --filter @tonplay/shared run build
-RUN pnpm --filter @tonplay/bot run build
 
-# Generate Prisma client using the API schema
+# Generate Prisma client BEFORE TypeScript build (tsc needs the types)
 RUN cd apps/bot && pnpm exec prisma generate --schema=prisma/schema.prisma
+
+# Build bot (TypeScript)
+RUN pnpm --filter @tonplay/bot run build
 
 WORKDIR /app/apps/bot
 EXPOSE 3001
