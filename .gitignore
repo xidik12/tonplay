@@ -1,0 +1,9 @@
+node_modules/
+dist/
+build/
+.turbo/
+.env
+*.log
+.DS_Store
+coverage/
+.prisma/

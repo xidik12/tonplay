@@ -1,0 +1,411 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Core User ──────────────────────────────────────────────────────────────────
+
+model User {
+  id             String    @id @default(cuid())
+  telegramId     BigInt    @unique @map("telegram_id")
+  username       String?
+  firstName      String    @map("first_name")
+  lastName       String?   @map("last_name")
+  languageCode   String    @default("en") @map("language_code")
+  isPremium      Boolean   @default(false) @map("is_premium")
+  ticketBalance  Int       @default(500) @map("ticket_balance")
+  tplayBalance   Decimal   @default(0) @map("tplay_balance") @db.Decimal(20, 9)
+  xp             Int       @default(0)
+  level          Int       @default(1)
+  isBanned       Boolean   @default(false) @map("is_banned")
+  referralCode   String    @unique @default(cuid()) @map("referral_code")
+  referredById   String?   @map("referred_by_id")
+  referredBy     User?     @relation("UserReferrals", fields: [referredById], references: [id])
+  referrals      User[]    @relation("UserReferrals")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  wallet              Wallet?
+  gameSessions        GameSession[]
+  transactions        Transaction[]
+  userNfts            UserNft[]
+  referralsMade       Referral[]         @relation("Referrer")
+  referralsReceived   Referral[]         @relation("Referred")
+  userMissions        UserMission[]
+  userStreak          UserStreak?
+  userBattlePass      UserBattlePass[]
+  clanMembership      ClanMember?
+  tournamentEntries   TournamentEntry[]
+  notifications       Notification[]
+
+  @@map("users")
+}
+
+// ─── Wallet ─────────────────────────────────────────────────────────────────────
+
+model Wallet {
+  id                String   @id @default(cuid())
+  userId            String   @unique @map("user_id")
+  user              User     @relation(fields: [userId], references: [id])
+  tonAddress        String?  @map("ton_address")
+  tonConnectSession Json?    @map("ton_connect_session")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  @@map("wallets")
+}
+
+// ─── Games ──────────────────────────────────────────────────────────────────────
+
+model Game {
+  id             String   @id @default(cuid())
+  slug           String   @unique
+  name           String
+  description    String   @default("")
+  thumbnailUrl   String?  @map("thumbnail_url")
+  category       String   @default("arcade")
+  entryCostMin   Int      @default(10) @map("entry_cost_min")
+  entryCostMax   Int      @default(1000) @map("entry_cost_max")
+  maxScore       Int      @default(999) @map("max_score")
+  maxDurationMs  Int      @default(300000) @map("max_duration_ms")
+  minDurationMs  Int      @default(3000) @map("min_duration_ms")
+  enabled        Boolean  @default(false)
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  sessions    GameSession[]
+  tournaments Tournament[]
+
+  @@map("games")
+}
+
+model GameSession {
+  id                String    @id @default(cuid())
+  userId            String    @map("user_id")
+  user              User      @relation(fields: [userId], references: [id])
+  gameId            String    @map("game_id")
+  game              Game      @relation(fields: [gameId], references: [id])
+  status            String    @default("pending")
+  wagerAmount       Int       @map("wager_amount")
+  wagerCurrency     String    @default("TICKET") @map("wager_currency")
+  serverSeed        String    @map("server_seed")
+  serverSeedHash    String    @map("server_seed_hash")
+  clientSeed        String?   @map("client_seed")
+  score             Int?
+  replayData        Bytes?    @map("replay_data")
+  replayHash        String?   @map("replay_hash")
+  verificationScore Float?    @map("verification_score")
+  rewards           Json?
+  startedAt         DateTime  @default(now()) @map("started_at")
+  activatedAt       DateTime? @map("activated_at")
+  completedAt       DateTime? @map("completed_at")
+  verifiedAt        DateTime? @map("verified_at")
+
+  @@index([userId, status])
+  @@index([gameId])
+  @@map("game_sessions")
+}
+
+// ─── Economy ────────────────────────────────────────────────────────────────────
+
+model Transaction {
+  id             String   @id @default(cuid())
+  userId         String   @map("user_id")
+  user           User     @relation(fields: [userId], references: [id])
+  type           String
+  currency       String
+  amount         Decimal  @db.Decimal(20, 9)
+  direction      String
+  balanceBefore  Decimal  @map("balance_before") @db.Decimal(20, 9)
+  balanceAfter   Decimal  @map("balance_after") @db.Decimal(20, 9)
+  txHash         String?  @map("tx_hash")
+  memo           String?
+  sessionId      String?  @map("session_id")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  @@index([userId, type])
+  @@index([txHash])
+  @@map("transactions")
+}
+
+model PendingTransaction {
+  id              String   @id @default(cuid())
+  userId          String   @map("user_id")
+  type            String
+  currency        String
+  amount          Decimal  @db.Decimal(20, 9)
+  direction       String
+  status          String   @default("PENDING")
+  tonAddress      String?  @map("ton_address")
+  txHash          String?  @map("tx_hash")
+  confirmations   Int      @default(0)
+  memo            String?
+  error           String?
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@index([status])
+  @@index([txHash])
+  @@map("pending_transactions")
+}
+
+// ─── NFTs ───────────────────────────────────────────────────────────────────────
+
+model NftCollection {
+  id              String   @id @default(cuid())
+  name            String
+  contractAddress String?  @unique @map("contract_address")
+  maxSupply       Int      @map("max_supply")
+  currentSupply   Int      @default(0) @map("current_supply")
+  metadata        Json?
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  items NftItem[]
+
+  @@map("nft_collections")
+}
+
+model NftItem {
+  id              String        @id @default(cuid())
+  collectionId    String        @map("collection_id")
+  collection      NftCollection @relation(fields: [collectionId], references: [id])
+  tokenIndex      Int           @map("token_index")
+  name            String
+  imageUrl        String?       @map("image_url")
+  rarity          String        @default("COMMON")
+  level           Int           @default(1)
+  xp              Int           @default(0)
+  gameBonus       Json?         @map("game_bonus")
+  metadata        Json?
+  createdAt       DateTime      @default(now()) @map("created_at")
+
+  userNfts UserNft[]
+
+  @@unique([collectionId, tokenIndex])
+  @@map("nft_items")
+}
+
+model UserNft {
+  id          String    @id @default(cuid())
+  userId      String    @map("user_id")
+  user        User      @relation(fields: [userId], references: [id])
+  nftItemId   String    @map("nft_item_id")
+  nftItem     NftItem   @relation(fields: [nftItemId], references: [id])
+  isEquipped  Boolean   @default(false) @map("is_equipped")
+  equippedAt  DateTime? @map("equipped_at")
+  acquiredAt  DateTime  @default(now()) @map("acquired_at")
+
+  @@unique([userId, nftItemId])
+  @@index([userId])
+  @@map("user_nfts")
+}
+
+// ─── Referrals ──────────────────────────────────────────────────────────────────
+
+model Referral {
+  id            String   @id @default(cuid())
+  referrerId    String   @map("referrer_id")
+  referrer      User     @relation("Referrer", fields: [referrerId], references: [id])
+  referredId    String   @map("referred_id")
+  referred      User     @relation("Referred", fields: [referredId], references: [id])
+  tier          Int      @default(1)
+  totalEarnings Int      @default(0) @map("total_earnings")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@unique([referrerId, referredId])
+  @@map("referrals")
+}
+
+// ─── Missions / Progression ────────────────────────────────────────────────────
+
+model Mission {
+  id           String   @id @default(cuid())
+  slug         String   @unique
+  title        String
+  description  String
+  type         String
+  targetValue  Int      @map("target_value")
+  rewardType   String   @default("TICKET") @map("reward_type")
+  rewardAmount Int      @map("reward_amount")
+  isDaily      Boolean  @default(false) @map("is_daily")
+  enabled      Boolean  @default(true)
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  userMissions UserMission[]
+
+  @@map("missions")
+}
+
+model UserMission {
+  id          String    @id @default(cuid())
+  userId      String    @map("user_id")
+  user        User      @relation(fields: [userId], references: [id])
+  missionId   String    @map("mission_id")
+  mission     Mission   @relation(fields: [missionId], references: [id])
+  progress    Int       @default(0)
+  isCompleted Boolean   @default(false) @map("is_completed")
+  claimedAt   DateTime? @map("claimed_at")
+  assignedAt  DateTime  @default(now()) @map("assigned_at")
+
+  @@unique([userId, missionId])
+  @@map("user_missions")
+}
+
+model UserStreak {
+  id             String    @id @default(cuid())
+  userId         String    @unique @map("user_id")
+  user           User      @relation(fields: [userId], references: [id])
+  currentStreak  Int       @default(0) @map("current_streak")
+  longestStreak  Int       @default(0) @map("longest_streak")
+  lastClaimDate  DateTime? @map("last_claim_date")
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  @@map("user_streaks")
+}
+
+// ─── Battle Pass / Seasons ──────────────────────────────────────────────────────
+
+model Season {
+  id            String   @id @default(cuid())
+  name          String
+  startDate     DateTime @map("start_date")
+  endDate       DateTime @map("end_date")
+  premiumPrice  Int      @map("premium_price")
+  maxLevel      Int      @default(50) @map("max_level")
+  isActive      Boolean  @default(false) @map("is_active")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  rewards      SeasonReward[]
+  battlePasses UserBattlePass[]
+
+  @@map("seasons")
+}
+
+model SeasonReward {
+  id           String  @id @default(cuid())
+  seasonId     String  @map("season_id")
+  season       Season  @relation(fields: [seasonId], references: [id])
+  level        Int
+  isPremium    Boolean @default(false) @map("is_premium")
+  rewardType   String  @map("reward_type")
+  rewardAmount Int     @map("reward_amount")
+  rewardMeta   Json?   @map("reward_meta")
+
+  @@unique([seasonId, level, isPremium])
+  @@map("season_rewards")
+}
+
+model UserBattlePass {
+  id           String    @id @default(cuid())
+  userId       String    @map("user_id")
+  user         User      @relation(fields: [userId], references: [id])
+  seasonId     String    @map("season_id")
+  season       Season    @relation(fields: [seasonId], references: [id])
+  isPremium    Boolean   @default(false) @map("is_premium")
+  currentLevel Int       @default(0) @map("current_level")
+  xp           Int       @default(0)
+  purchasedAt  DateTime? @map("purchased_at")
+
+  @@unique([userId, seasonId])
+  @@map("user_battle_passes")
+}
+
+// ─── Social / Clans ─────────────────────────────────────────────────────────────
+
+model Clan {
+  id           String   @id @default(cuid())
+  name         String   @unique
+  tag          String   @unique
+  description  String?
+  leaderId     String   @map("leader_id")
+  totalXp      Int      @default(0) @map("total_xp")
+  memberCount  Int      @default(1) @map("member_count")
+  maxMembers   Int      @default(50) @map("max_members")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  members ClanMember[]
+
+  @@map("clans")
+}
+
+model ClanMember {
+  id             String   @id @default(cuid())
+  clanId         String   @map("clan_id")
+  clan           Clan     @relation(fields: [clanId], references: [id])
+  userId         String   @unique @map("user_id")
+  user           User     @relation(fields: [userId], references: [id])
+  role           String   @default("MEMBER")
+  xpContributed  Int      @default(0) @map("xp_contributed")
+  joinedAt       DateTime @default(now()) @map("joined_at")
+
+  @@unique([clanId, userId])
+  @@map("clan_members")
+}
+
+// ─── Tournaments ────────────────────────────────────────────────────────────────
+
+model Tournament {
+  id            String   @id @default(cuid())
+  name          String
+  gameId        String   @map("game_id")
+  game          Game     @relation(fields: [gameId], references: [id])
+  status        String   @default("UPCOMING")
+  format        String   @default("HIGH_SCORE")
+  entryFee      Int      @default(0) @map("entry_fee")
+  entryCurrency String   @default("TICKET") @map("entry_currency")
+  prizePool     Int      @default(0) @map("prize_pool")
+  maxEntries    Int      @default(100) @map("max_entries")
+  startTime     DateTime @map("start_time")
+  endTime       DateTime @map("end_time")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  entries TournamentEntry[]
+
+  @@map("tournaments")
+}
+
+model TournamentEntry {
+  id            String     @id @default(cuid())
+  tournamentId  String     @map("tournament_id")
+  tournament    Tournament @relation(fields: [tournamentId], references: [id])
+  userId        String     @map("user_id")
+  user          User       @relation(fields: [userId], references: [id])
+  bestScore     Int        @default(0) @map("best_score")
+  attempts      Int        @default(0)
+  rank          Int?
+  prizeAmount   Int?       @map("prize_amount")
+  joinedAt      DateTime   @default(now()) @map("joined_at")
+
+  @@unique([tournamentId, userId])
+  @@map("tournament_entries")
+}
+
+// ─── Notifications ──────────────────────────────────────────────────────────────
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id])
+  type      String
+  title     String
+  body      String
+  data      Json?
+  isRead    Boolean  @default(false) @map("is_read")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId, isRead])
+  @@map("notifications")
+}
+
+// ─── System Config ──────────────────────────────────────────────────────────────
+
+model SystemConfig {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("system_config")
+}
