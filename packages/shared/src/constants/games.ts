@@ -1,4 +1,4 @@
-import type { GameInfo } from '../types/game';
+import type { GameInfo } from '../types/game.js';
 
 /**
  * Complete registry of all 15 games in the TONPLAY platform.

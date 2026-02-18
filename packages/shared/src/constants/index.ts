@@ -1,3 +1,3 @@
-export * from './games';
-export * from './economy';
-export * from './limits';
+export * from './games.js';
+export * from './economy.js';
+export * from './limits.js';
