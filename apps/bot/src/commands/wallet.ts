@@ -1,3 +1,4 @@
+import { PrismaClient } from '@prisma/client';
 import { InlineKeyboard } from 'grammy';
 import { BotContext } from '../middleware/context.js';
 
@@ -17,7 +18,7 @@ function truncateAddress(address: string): string {
  * shows their connected TON wallet address (if any),
  * and provides action buttons for wallet management.
  */
-export function createWalletHandler(webAppUrl: string) {
+export function createWalletHandler(prisma: PrismaClient, webAppUrl: string) {
   return async (ctx: BotContext): Promise<void> => {
     const { dbUser } = ctx;
 
@@ -26,24 +27,32 @@ export function createWalletHandler(webAppUrl: string) {
       return;
     }
 
+    // Fetch wallet info from the Wallet table
+    const wallet = await prisma.wallet.findUnique({
+      where: { userId: dbUser.id },
+    });
+    const walletAddress = wallet?.tonAddress ?? null;
+
+    const tplayDisplay = Number(dbUser.tplayBalance ?? 0).toLocaleString();
+
     const lines: string[] = [
       '💰 *Your Wallet*',
       '',
       '📊 *Balances:*',
       `  🎟 Tickets: *${dbUser.ticketBalance.toLocaleString()}*`,
-      `  🪙 $TPLAY: *${dbUser.tplayBalance.toLocaleString()}*`,
+      `  🪙 $TPLAY: *${tplayDisplay}*`,
       '',
     ];
 
-    if (dbUser.walletAddress) {
-      lines.push(`🔗 *TON Wallet:* \`${truncateAddress(dbUser.walletAddress)}\``);
+    if (walletAddress) {
+      lines.push(`🔗 *TON Wallet:* \`${truncateAddress(walletAddress)}\``);
     } else {
       lines.push('🔗 *TON Wallet:* Not connected');
     }
 
     const keyboard = new InlineKeyboard();
 
-    if (!dbUser.walletAddress) {
+    if (!walletAddress) {
       keyboard.webApp('🔗 Connect Wallet', `${webAppUrl}/wallet/connect`);
       keyboard.row();
     }

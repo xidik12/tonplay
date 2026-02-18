@@ -2,12 +2,12 @@ import { prisma } from '../../config/database.js';
 import { redis } from '../../config/redis.js';
 import { generateServerSeed, hashSeed, sha256 } from '../../lib/crypto.js';
 import { AppError } from '../../middleware/error-handler.js';
-import { Queue } from 'bullmq';
+import { Queue, type ConnectionOptions } from 'bullmq';
 import { createBullMQConnection } from '../../config/redis.js';
 
 // BullMQ queue for score verification jobs
 const scoreVerifyQueue = new Queue('score-verify', {
-  connection: createBullMQConnection(),
+  connection: createBullMQConnection() as unknown as ConnectionOptions,
   defaultJobOptions: {
     attempts: 3,
     backoff: { type: 'exponential', delay: 1000 },
@@ -316,7 +316,7 @@ export async function completeSession(
     data: {
       status: 'completed',
       score,
-      replayData: replayData ?? null,
+      replayData: replayData ? new Uint8Array(replayData) : null,
       replayHash,
       completedAt: now,
     },

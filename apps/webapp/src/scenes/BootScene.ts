@@ -14,20 +14,20 @@ export class BootScene extends Phaser.Scene {
     const { width, height } = this.scale;
 
     // Create loading bar graphics that PreloadScene can use
-    const barBg = this.make.graphics({ x: 0, y: 0, add: false });
+    const barBg = this.make.graphics({ x: 0, y: 0 });
     barBg.fillStyle(0x1a1a2e, 1);
     barBg.fillRoundedRect(0, 0, 240, 12, 6);
     barBg.generateTexture('loading-bar-bg', 240, 12);
     barBg.destroy();
 
-    const barFill = this.make.graphics({ x: 0, y: 0, add: false });
+    const barFill = this.make.graphics({ x: 0, y: 0 });
     barFill.fillStyle(0x6c5ce7, 1);
     barFill.fillRoundedRect(0, 0, 236, 8, 4);
     barFill.generateTexture('loading-bar-fill', 236, 8);
     barFill.destroy();
 
     // Create a simple logo text
-    const logo = this.make.graphics({ x: 0, y: 0, add: false });
+    const logo = this.make.graphics({ x: 0, y: 0 });
     logo.fillStyle(0x6c5ce7, 1);
     logo.fillCircle(32, 32, 32);
     logo.fillStyle(0x00cec9, 0.8);
@@ -36,7 +36,7 @@ export class BootScene extends Phaser.Scene {
     logo.destroy();
 
     // Create particle texture for effects
-    const particle = this.make.graphics({ x: 0, y: 0, add: false });
+    const particle = this.make.graphics({ x: 0, y: 0 });
     particle.fillStyle(0xffffff, 1);
     particle.fillCircle(4, 4, 4);
     particle.generateTexture('particle', 8, 8);

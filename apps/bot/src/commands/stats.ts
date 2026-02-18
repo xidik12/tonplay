@@ -28,13 +28,13 @@ export function createStatsHandler(prisma: PrismaClient, webAppUrl: string) {
           userId: dbUser.id,
           status: { in: ['verified', 'completed'] },
         },
-        _count: { id: true },
+        _count: { _all: true },
         _sum: {
           wagerAmount: true,
-          payout: true,
+          score: true,
         },
         _max: {
-          payout: true,
+          score: true,
         },
       });
 
@@ -43,10 +43,10 @@ export function createStatsHandler(prisma: PrismaClient, webAppUrl: string) {
         where: { userId: dbUser.id },
       });
 
-      const gamesPlayed = stats._count.id ?? 0;
-      const totalWagered = stats._sum.wagerAmount ?? 0;
-      const totalWon = stats._sum.payout ?? 0;
-      const biggestWin = stats._max.payout ?? 0;
+      const gamesPlayed = stats._count?._all ?? 0;
+      const totalWagered = stats._sum?.wagerAmount ?? 0;
+      const totalWon = stats._sum?.score ?? 0;
+      const biggestWin = stats._max?.score ?? 0;
       const currentStreak = streak?.currentStreak ?? 0;
 
       // Calculate win rate
@@ -56,7 +56,7 @@ export function createStatsHandler(prisma: PrismaClient, webAppUrl: string) {
           where: {
             userId: dbUser.id,
             status: 'verified',
-            payout: { gt: 0 },
+            score: { gt: 0 },
           },
         });
       }

@@ -35,8 +35,8 @@ export function createUserSyncMiddleware(prisma: PrismaClient) {
         },
         update: {
           firstName: telegramUser.first_name,
-          lastName: telegramUser.last_name ?? '',
-          username: telegramUser.username ?? '',
+          lastName: telegramUser.last_name ?? null,
+          username: telegramUser.username ?? null,
           isPremium: telegramUser.is_premium ?? false,
           languageCode: telegramUser.language_code ?? 'en',
           updatedAt: new Date(),
@@ -44,15 +44,10 @@ export function createUserSyncMiddleware(prisma: PrismaClient) {
         create: {
           telegramId: BigInt(telegramUser.id),
           firstName: telegramUser.first_name,
-          lastName: telegramUser.last_name ?? '',
-          username: telegramUser.username ?? '',
+          lastName: telegramUser.last_name ?? null,
+          username: telegramUser.username ?? null,
           isPremium: telegramUser.is_premium ?? false,
           languageCode: telegramUser.language_code ?? 'en',
-          ticketBalance: 500,
-          tplayBalance: 0,
-          xp: 0,
-          level: 1,
-          isBanned: false,
           referralCode: generateReferralCode(),
         },
       });

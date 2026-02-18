@@ -25,7 +25,7 @@ export function createMainMenu(
   getBotUsername: () => string
 ): Menu<BotContext> {
   const statsHandler = createStatsHandler(prisma, webAppUrl);
-  const walletHandler = createWalletHandler(webAppUrl);
+  const walletHandler = createWalletHandler(prisma, webAppUrl);
 
   const menu = new Menu<BotContext>('main-menu')
     .webApp('🎮 Play', `${webAppUrl}/lobby`)

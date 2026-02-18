@@ -71,8 +71,12 @@ export type WsEvent =
   | 'tournament:update';
 
 declare module 'fastify' {
+  interface FastifySchema {
+    description?: string;
+    tags?: string[];
+  }
   interface FastifyRequest {
-    user?: JwtPayload;
+    user: JwtPayload;
   }
 }
 

@@ -1,11 +1,12 @@
+import fp from 'fastify-plugin';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import type { JwtPayload } from '../types/index.js';
 
 /**
  * Fastify plugin that registers a JWT authentication decorator.
- * Use `app.decorate('authenticate', ...)` so routes can use `{ preHandler: [app.authenticate] }`.
+ * Wrapped with fastify-plugin to break encapsulation so all routes can access it.
  */
-export async function authPlugin(app: FastifyInstance): Promise<void> {
+export const authPlugin = fp(async function authPlugin(app: FastifyInstance): Promise<void> {
   app.decorate(
     'authenticate',
     async function (request: FastifyRequest, reply: FastifyReply): Promise<void> {
@@ -23,7 +24,7 @@ export async function authPlugin(app: FastifyInstance): Promise<void> {
       }
     }
   );
-}
+});
 
 /**
  * Pre-handler that checks if the authenticated user is not banned.

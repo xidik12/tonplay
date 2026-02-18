@@ -16,6 +16,7 @@ import { leaderboardRoutes } from './modules/leaderboard/leaderboard.routes.js';
 import { economyRoutes } from './modules/economy/economy.routes.js';
 import { setupSocketIO } from './websocket/handler.js';
 import { createScoreVerifyWorker } from './workers/score-verify.worker.js';
+import type { FastifyRequest, FastifyReply } from 'fastify';
 import type { JwtPayload } from './types/index.js';
 
 async function main(): Promise<void> {
@@ -88,7 +89,7 @@ async function main(): Promise<void> {
       description: 'Health check endpoint',
       tags: ['system'],
     },
-    handler: async (_request, reply) => {
+    handler: async (_request: FastifyRequest, reply: FastifyReply) => {
       const redisOk = redis.status === 'ready';
 
       return reply.send({

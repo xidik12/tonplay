@@ -106,7 +106,7 @@ export class PreloadScene extends Phaser.Scene {
         to: 1,
         duration: 600,
         onUpdate: (tween) => {
-          this.updateProgress(tween.getValue());
+          this.updateProgress(tween.getValue() ?? 0);
         },
         onComplete: () => {
           this.onLoadComplete();

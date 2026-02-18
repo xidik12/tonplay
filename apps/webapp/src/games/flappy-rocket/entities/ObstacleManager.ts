@@ -124,7 +124,7 @@ export class ObstacleManager {
     const pair: ObstaclePair = {
       id,
       top,
-      bottom,
+      bottom: bot,
       topEdge,
       bottomEdge,
       scored: false,

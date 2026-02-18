@@ -1,4 +1,4 @@
-import { Worker, type Job } from 'bullmq';
+import { Worker, type Job, type ConnectionOptions } from 'bullmq';
 import { prisma } from '../config/database.js';
 import { createBullMQConnection } from '../config/redis.js';
 import { updateScore } from '../modules/leaderboard/leaderboard.service.js';
@@ -383,7 +383,7 @@ export function createScoreVerifyWorker(): Worker {
       }
     },
     {
-      connection: createBullMQConnection(),
+      connection: createBullMQConnection() as unknown as ConnectionOptions,
       concurrency: 5,
       limiter: {
         max: 100,

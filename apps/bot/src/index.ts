@@ -86,7 +86,7 @@ bot.use(mainMenu);
 
 bot.command('start', createStartHandler(prisma, WEBAPP_URL));
 bot.command('play', createPlayHandler(WEBAPP_URL));
-bot.command('wallet', createWalletHandler(WEBAPP_URL));
+bot.command('wallet', createWalletHandler(prisma, WEBAPP_URL));
 bot.command('stats', createStatsHandler(prisma, WEBAPP_URL));
 bot.command('referral', async (ctx) => {
   // Use the resolved bot username (available after init)
@@ -106,7 +106,7 @@ bot.callbackQuery('cmd:stats', async (ctx) => {
 
 bot.callbackQuery('cmd:wallet', async (ctx) => {
   await ctx.answerCallbackQuery();
-  const handler = createWalletHandler(WEBAPP_URL);
+  const handler = createWalletHandler(prisma, WEBAPP_URL);
   await handler(ctx);
 });
 

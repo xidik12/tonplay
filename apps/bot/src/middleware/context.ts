@@ -7,18 +7,18 @@ import { Context } from 'grammy';
 export interface DbUser {
   id: string;
   telegramId: bigint;
-  username: string;
+  username: string | null;
   firstName: string;
-  lastName: string;
+  lastName: string | null;
   languageCode: string;
   isPremium: boolean;
   ticketBalance: number;
-  tplayBalance: number;
+  tplayBalance: unknown;
   xp: number;
   level: number;
   isBanned: boolean;
   referralCode: string;
-  walletAddress: string | null;
+  referredById: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
