@@ -176,12 +176,13 @@ async function main(): Promise<void> {
 
   // ─── Start Server ───────────────────────────────────────────────────────────
 
+  const port = env.PORT ?? env.API_PORT;
   await app.listen({
-    port: env.API_PORT,
+    port,
     host: env.API_HOST,
   });
 
-  console.log(`TONPLAY API server running on http://${env.API_HOST}:${env.API_PORT}`);
+  console.log(`TONPLAY API server running on http://${env.API_HOST}:${port}`);
   console.log(`Environment: ${env.NODE_ENV}`);
 
   // ─── Graceful Shutdown ──────────────────────────────────────────────────────

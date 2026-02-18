@@ -27,7 +27,7 @@ if (!BOT_TOKEN) {
 const WEBAPP_URL = process.env.WEBAPP_URL ?? 'http://localhost:5173';
 const NODE_ENV = process.env.NODE_ENV ?? 'development';
 const WEBHOOK_URL = process.env.WEBHOOK_URL; // e.g. https://api.tonplay.io/bot/webhook
-const PORT = parseInt(process.env.BOT_PORT ?? '3001', 10);
+const PORT = parseInt(process.env.PORT ?? process.env.BOT_PORT ?? '3001', 10);
 
 const logger = pino({
   name: 'tonplay-bot',
