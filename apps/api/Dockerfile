@@ -33,4 +33,4 @@ WORKDIR /app/apps/api
 EXPOSE 3000
 
 # Run migrations then start server
-CMD ["sh", "-c", "npx prisma db push --skip-generate && node dist/index.js"]
+CMD ["node", "dist/index.js"]
