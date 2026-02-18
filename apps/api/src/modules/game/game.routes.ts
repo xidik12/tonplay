@@ -6,6 +6,8 @@ import {
   activateSession,
   completeSession,
   getSessionDetails,
+  listUserSessions,
+  abandonSession,
 } from './game.service.js';
 
 const startSessionSchema = z.object({
@@ -21,6 +23,8 @@ const activateSessionSchema = z.object({
 const completeSessionSchema = z.object({
   score: z.number().int().min(0, 'score must be non-negative'),
   replayData: z.string().optional(), // Base64 encoded replay data
+  replayHash: z.string().optional(),
+  duration: z.number().int().min(0).optional(),
 });
 
 export async function gameRoutes(app: FastifyInstance): Promise<void> {
@@ -180,6 +184,63 @@ export async function gameRoutes(app: FastifyInstance): Promise<void> {
       return reply.send({
         success: true,
         data: session,
+      });
+    },
+  });
+
+  /**
+   * GET /game/sessions
+   * List recent game sessions for the authenticated user.
+   */
+  app.get<{ Querystring: Record<string, string> }>('/game/sessions', {
+    preHandler: [app.authenticate],
+    schema: {
+      description: 'List recent game sessions',
+      tags: ['game'],
+      querystring: {
+        type: 'object',
+        properties: {
+          limit: { type: 'number' },
+        },
+      },
+    },
+    handler: async (request, reply) => {
+      const { userId } = request.user!;
+      const limit = parseInt((request.query as Record<string, string>).limit ?? '10', 10);
+
+      const sessions = await listUserSessions(userId, limit);
+
+      return reply.send({
+        success: true,
+        data: sessions,
+      });
+    },
+  });
+
+  /**
+   * POST /game/session/:id/abandon
+   * Abandon a pending or active session and refund the wager.
+   */
+  app.post<{ Params: { id: string } }>('/game/session/:id/abandon', {
+    preHandler: [app.authenticate],
+    schema: {
+      description: 'Abandon a game session',
+      tags: ['game'],
+      params: {
+        type: 'object',
+        required: ['id'],
+        properties: { id: { type: 'string' } },
+      },
+    },
+    handler: async (request, reply) => {
+      const { userId } = request.user!;
+      const { id } = request.params;
+
+      const result = await abandonSession(userId, id);
+
+      return reply.send({
+        success: true,
+        data: result,
       });
     },
   });

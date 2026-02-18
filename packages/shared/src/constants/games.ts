@@ -20,7 +20,7 @@ export const GAME_LIST: GameInfo[] = [
     maxWager: 1000,
     maxScore: 500,
     category: 'arcade',
-    enabled: false,
+    enabled: true,
   },
   {
     slug: 'flappy-rocket',
@@ -42,7 +42,7 @@ export const GAME_LIST: GameInfo[] = [
     maxWager: 1000,
     maxScore: 300,
     category: 'arcade',
-    enabled: false,
+    enabled: true,
   },
   {
     slug: 'pixel-blaster',
@@ -53,7 +53,7 @@ export const GAME_LIST: GameInfo[] = [
     maxWager: 1000,
     maxScore: 1000,
     category: 'arcade',
-    enabled: false,
+    enabled: true,
   },
   {
     slug: 'fruit-slash',
@@ -64,7 +64,7 @@ export const GAME_LIST: GameInfo[] = [
     maxWager: 1000,
     maxScore: 400,
     category: 'arcade',
-    enabled: false,
+    enabled: true,
   },
 
   // ── Casino ──────────────────────────────────────────────────────────────
@@ -77,7 +77,7 @@ export const GAME_LIST: GameInfo[] = [
     maxWager: 1000,
     maxScore: 50,
     category: 'casino',
-    enabled: false,
+    enabled: true,
   },
   {
     slug: 'dice-duel',
@@ -88,7 +88,7 @@ export const GAME_LIST: GameInfo[] = [
     maxWager: 1000,
     maxScore: 36,
     category: 'casino',
-    enabled: false,
+    enabled: true,
   },
   {
     slug: 'coin-train',
@@ -99,7 +99,7 @@ export const GAME_LIST: GameInfo[] = [
     maxWager: 1000,
     maxScore: 100,
     category: 'casino',
-    enabled: false,
+    enabled: true,
   },
 
   // ── Physics ─────────────────────────────────────────────────────────────
@@ -112,7 +112,7 @@ export const GAME_LIST: GameInfo[] = [
     maxWager: 1000,
     maxScore: 150,
     category: 'physics',
-    enabled: false,
+    enabled: true,
   },
   {
     slug: 'plinko-drop',
@@ -123,7 +123,7 @@ export const GAME_LIST: GameInfo[] = [
     maxWager: 1000,
     maxScore: 100,
     category: 'physics',
-    enabled: false,
+    enabled: true,
   },
   {
     slug: 'tower-stack',
@@ -134,7 +134,7 @@ export const GAME_LIST: GameInfo[] = [
     maxWager: 1000,
     maxScore: 100,
     category: 'physics',
-    enabled: false,
+    enabled: true,
   },
   {
     slug: 'bubble-pop',
@@ -145,7 +145,7 @@ export const GAME_LIST: GameInfo[] = [
     maxWager: 1000,
     maxScore: 250,
     category: 'physics',
-    enabled: false,
+    enabled: true,
   },
 
   // ── Puzzle ──────────────────────────────────────────────────────────────
@@ -158,7 +158,7 @@ export const GAME_LIST: GameInfo[] = [
     maxWager: 1000,
     maxScore: 500,
     category: 'puzzle',
-    enabled: false,
+    enabled: true,
   },
   {
     slug: 'memory-cards',
@@ -169,7 +169,7 @@ export const GAME_LIST: GameInfo[] = [
     maxWager: 1000,
     maxScore: 100,
     category: 'puzzle',
-    enabled: false,
+    enabled: true,
   },
   {
     slug: 'rhythm-tap',
@@ -180,6 +180,6 @@ export const GAME_LIST: GameInfo[] = [
     maxWager: 1000,
     maxScore: 300,
     category: 'puzzle',
-    enabled: false,
+    enabled: true,
   },
 ];

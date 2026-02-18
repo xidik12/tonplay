@@ -143,17 +143,21 @@ export function Profile() {
 
   const loadStats = useCallback(async () => {
     try {
-      const data = await api.get<UserStats>('/user/stats');
+      const data = await api.get<UserStats>('/user/me/stats');
       setStats(data);
     } catch {
       // Stats endpoint might not be available
       setStats({
-        gamesPlayed: 0,
+        totalGamesPlayed: 0,
         totalWagered: 0,
         totalWon: 0,
-        biggestWin: 0,
-        favoriteGame: null,
         winRate: 0,
+        highestScore: 0,
+        currentStreak: 0,
+        longestStreak: 0,
+        referralCount: 0,
+        missionsCompleted: 0,
+        clanName: null,
       });
     }
   }, []);
@@ -264,7 +268,7 @@ export function Profile() {
             <div className="grid grid-cols-2 gap-3">
               <StatCard
                 label="Games Played"
-                value={formatNumber(stats.gamesPlayed)}
+                value={formatNumber(stats.totalGamesPlayed)}
               />
               <StatCard
                 label="Win Rate"
@@ -277,8 +281,8 @@ export function Profile() {
                 color="text-accent"
               />
               <StatCard
-                label="Biggest Win"
-                value={formatCompact(stats.biggestWin)}
+                label="Highest Score"
+                value={formatCompact(stats.highestScore)}
                 color="text-green-400"
               />
             </div>

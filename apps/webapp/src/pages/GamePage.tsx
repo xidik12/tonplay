@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Phaser from 'phaser';
 import { GAME_LIST } from '@tonplay/shared';
-import type { GameInfo, GameResult } from '@tonplay/shared';
+import type { GameInfo, GameResult, GameSlug } from '@tonplay/shared';
 import { ResponsiveScaler } from '@/core/ResponsiveScaler';
 import { useTelegram } from '@/hooks/useTelegram';
 import { useBalance } from '@/hooks/useBalance';
@@ -11,9 +11,31 @@ import { WagerSelector } from '@/ui/WagerSelector';
 import { ResultOverlay } from '@/ui/ResultOverlay';
 import { BootScene } from '@/scenes/BootScene';
 import { PreloadScene } from '@/scenes/PreloadScene';
+import type { BaseGame } from '@/games/BaseGame';
 
-// Dynamic game scene imports will be lazy loaded
 type GamePhase = 'wager' | 'loading' | 'playing' | 'result';
+
+/** Lazy-loads game scene classes for code splitting — each game is its own chunk */
+async function loadGameScene(slug: GameSlug): Promise<typeof Phaser.Scene | null> {
+  switch (slug) {
+    case 'flappy-rocket': return (await import('@/games/flappy-rocket/FlappyRocketScene')).FlappyRocketScene;
+    case 'tower-stack': return (await import('@/games/tower-stack/TowerStackScene')).TowerStackScene;
+    case 'neon-runner': return (await import('@/games/neon-runner/NeonRunnerScene')).NeonRunnerScene;
+    case 'snake-arena': return (await import('@/games/snake-arena/SnakeArenaScene')).SnakeArenaScene;
+    case 'pixel-blaster': return (await import('@/games/pixel-blaster/PixelBlasterScene')).PixelBlasterScene;
+    case 'fruit-slash': return (await import('@/games/fruit-slash/FruitSlashScene')).FruitSlashScene;
+    case 'slot-spin': return (await import('@/games/slot-spin/SlotSpinScene')).SlotSpinScene;
+    case 'dice-duel': return (await import('@/games/dice-duel/DiceDuelScene')).DiceDuelScene;
+    case 'coin-train': return (await import('@/games/coin-train/CoinTrainScene')).CoinTrainScene;
+    case 'coin-dropper': return (await import('@/games/coin-dropper/CoinDropperScene')).CoinDropperScene;
+    case 'plinko-drop': return (await import('@/games/plinko-drop/PlinkoDropScene')).PlinkoDropScene;
+    case 'bubble-pop': return (await import('@/games/bubble-pop/BubblePopScene')).BubblePopScene;
+    case 'block-crush': return (await import('@/games/block-crush/BlockCrushScene')).BlockCrushScene;
+    case 'memory-cards': return (await import('@/games/memory-cards/MemoryCardsScene')).MemoryCardsScene;
+    case 'rhythm-tap': return (await import('@/games/rhythm-tap/RhythmTapScene')).RhythmTapScene;
+    default: return null;
+  }
+}
 
 export function GamePage() {
   const { slug } = useParams<{ slug: string }>();
@@ -86,6 +108,15 @@ export function GamePage() {
       setPhase('loading');
 
       try {
+        // Resolve the game scene class (lazy-loaded for code splitting)
+        const gameSceneClass = await loadGameScene(gameInfo.slug as GameSlug);
+        if (!gameSceneClass) {
+          console.error(`[GamePage] No scene registered for slug: ${gameInfo.slug}`);
+          addTickets(amount);
+          setPhase('wager');
+          return;
+        }
+
         // Initialize Phaser game
         const scaleConfig = ResponsiveScaler.getPhaserScaleConfig();
 
@@ -101,7 +132,7 @@ export function GamePage() {
               debug: false,
             },
           },
-          scene: [BootScene, PreloadScene],
+          scene: [BootScene, PreloadScene, gameSceneClass],
           input: {
             activePointers: 3,
           },
@@ -129,6 +160,19 @@ export function GamePage() {
 
         game.events.on('game:started', () => {
           setPhase('playing');
+        });
+
+        // When game scene signals it's ready, start the wager flow
+        game.events.on('game:ready', () => {
+          // Find the active game scene and call startWager
+          const sceneKey = (gameSceneClass as unknown as { prototype: { constructor: { name: string } } }).prototype?.constructor?.name;
+          const scenes = game.scene.getScenes(true);
+          for (const s of scenes) {
+            if (s instanceof gameSceneClass && 'startWager' in s) {
+              (s as BaseGame).startWager(amount);
+              break;
+            }
+          }
         });
 
         game.events.on('game:over', (gameResult: GameResult) => {
@@ -199,8 +243,14 @@ export function GamePage() {
             const confirmed = await bridge.showConfirm(
               'Pause the game? You can resume playing.',
             );
-            if (confirmed) {
-              phaserGameRef.current?.scene.pause('GameScene');
+            if (confirmed && phaserGameRef.current) {
+              const scenes = phaserGameRef.current.scene.getScenes(true);
+              for (const s of scenes) {
+                if ('getGameSlug' in s) {
+                  phaserGameRef.current.scene.pause(s.scene.key);
+                  break;
+                }
+              }
             }
           }}
         />

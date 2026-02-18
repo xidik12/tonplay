@@ -9,6 +9,10 @@ import { createPlayHandler } from './commands/play.js';
 import { createWalletHandler } from './commands/wallet.js';
 import { createStatsHandler } from './commands/stats.js';
 import { createReferralHandler } from './commands/referral.js';
+import { createClanHandler } from './commands/clan.js';
+import { createTournamentHandler } from './commands/tournament.js';
+import { createBattlePassHandler } from './commands/battlepass.js';
+import { startNotificationForwarder } from './services/notification-forwarder.js';
 import { createMainMenu } from './menus/main-menu.js';
 
 // ---------------------------------------------------------------------------
@@ -40,6 +44,7 @@ const logger = pino({
 
 const prisma = new PrismaClient();
 const bot = new Bot<BotContext>(BOT_TOKEN);
+let notifTimer: NodeJS.Timeout | null = null;
 
 // ---------------------------------------------------------------------------
 // Error handling
@@ -93,6 +98,9 @@ bot.command('referral', async (ctx) => {
   const handler = createReferralHandler(prisma, botUsername);
   await handler(ctx);
 });
+bot.command('clan', createClanHandler(prisma, WEBAPP_URL));
+bot.command('tournament', createTournamentHandler(prisma, WEBAPP_URL));
+bot.command('battlepass', createBattlePassHandler(prisma, WEBAPP_URL));
 
 // ---------------------------------------------------------------------------
 // Callback query handlers (for inline keyboard buttons)
@@ -137,7 +145,13 @@ async function start(): Promise<void> {
     { command: 'wallet', description: 'View balances & wallet' },
     { command: 'stats', description: 'View your game statistics' },
     { command: 'referral', description: 'Invite friends & earn' },
+    { command: 'clan', description: 'View your clan info' },
+    { command: 'tournament', description: 'Active tournaments' },
+    { command: 'battlepass', description: 'Season battle pass' },
   ]);
+
+  // Start notification forwarder (polls DB for important notifications → Telegram messages)
+  notifTimer = startNotificationForwarder(prisma, bot);
 
   if (NODE_ENV === 'production' && WEBHOOK_URL) {
     // --- Production: Webhook mode ---
@@ -199,6 +213,7 @@ async function shutdown(signal: string): Promise<void> {
   logger.info({ signal }, 'Shutting down gracefully...');
 
   try {
+    if (notifTimer) clearInterval(notifTimer);
     bot.stop();
     await prisma.$disconnect();
     logger.info('Cleanup complete, exiting');

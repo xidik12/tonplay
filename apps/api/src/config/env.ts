@@ -11,6 +11,7 @@ const envSchema = z.object({
   API_PORT: z.coerce.number().int().positive().default(3001),
   API_HOST: z.string().default('0.0.0.0'),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
+  ADMIN_USER_IDS: z.string().default(''),
 });
 
 export type Env = z.infer<typeof envSchema>;

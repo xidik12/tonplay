@@ -55,6 +55,14 @@
   .gradient-gold {
     background: linear-gradient(135deg, #fdcb6e 0%, #e17055 100%);
   }
+
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 /* Scrollbar styling */

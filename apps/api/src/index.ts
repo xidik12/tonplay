@@ -14,8 +14,19 @@ import { userRoutes } from './modules/user/user.routes.js';
 import { gameRoutes } from './modules/game/game.routes.js';
 import { leaderboardRoutes } from './modules/leaderboard/leaderboard.routes.js';
 import { economyRoutes } from './modules/economy/economy.routes.js';
+import { socialRoutes } from './modules/social/social.routes.js';
+import { notificationRoutes } from './modules/notification/notification.routes.js';
+import { walletRoutes } from './modules/wallet/wallet.routes.js';
+import { clanRoutes } from './modules/clan/clan.routes.js';
+import { nftRoutes } from './modules/nft/nft.routes.js';
+import { tournamentRoutes } from './modules/tournament/tournament.routes.js';
+import { progressionRoutes } from './modules/progression/progression.routes.js';
+import { adminRoutes } from './modules/admin/admin.routes.js';
 import { setupSocketIO } from './websocket/handler.js';
 import { createScoreVerifyWorker } from './workers/score-verify.worker.js';
+import { startSessionCleanup } from './workers/session-cleanup.worker.js';
+import { startTournamentLifecycle } from './workers/tournament-lifecycle.worker.js';
+import { cleanupExpiredLeaderboards } from './modules/leaderboard/leaderboard.service.js';
 import type { FastifyRequest, FastifyReply } from 'fastify';
 import type { JwtPayload } from './types/index.js';
 
@@ -42,7 +53,7 @@ async function main(): Promise<void> {
 
   // CORS
   await app.register(cors, {
-    origin: [env.WEBAPP_URL],
+    origin: env.WEBAPP_URL,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true,
@@ -115,6 +126,14 @@ async function main(): Promise<void> {
   await app.register(gameRoutes);
   await app.register(leaderboardRoutes);
   await app.register(economyRoutes);
+  await app.register(socialRoutes);
+  await app.register(notificationRoutes);
+  await app.register(walletRoutes);
+  await app.register(clanRoutes);
+  await app.register(nftRoutes);
+  await app.register(tournamentRoutes);
+  await app.register(progressionRoutes);
+  await app.register(adminRoutes);
 
   // ─── Connect Services ──────────────────────────────────────────────────────
 
@@ -136,6 +155,25 @@ async function main(): Promise<void> {
 
   const scoreVerifyWorker = createScoreVerifyWorker();
 
+  // ─── Session Cleanup ──────────────────────────────────────────────────────────
+
+  const cleanupTimer = startSessionCleanup();
+
+  // ─── Tournament Lifecycle ───────────────────────────────────────────────────
+
+  const tournamentTimer = startTournamentLifecycle();
+
+  // ─── Leaderboard Cleanup (every 6 hours) ────────────────────────────────────
+
+  const leaderboardCleanupTimer = setInterval(async () => {
+    try {
+      const removed = await cleanupExpiredLeaderboards();
+      if (removed > 0) console.log(`[LeaderboardCleanup] Removed ${removed} expired entries`);
+    } catch (err) {
+      console.error('[LeaderboardCleanup] Error:', err);
+    }
+  }, 6 * 60 * 60 * 1000);
+
   // ─── Start Server ───────────────────────────────────────────────────────────
 
   await app.listen({
@@ -152,6 +190,12 @@ async function main(): Promise<void> {
     console.log(`\nReceived ${signal}. Starting graceful shutdown...`);
 
     try {
+      // Stop cleanup timers
+      clearInterval(cleanupTimer);
+      clearInterval(leaderboardCleanupTimer);
+      clearInterval(tournamentTimer);
+      console.log('Cleanup timers stopped');
+
       // Close the score verification worker
       await scoreVerifyWorker.close();
       console.log('Score verify worker closed');

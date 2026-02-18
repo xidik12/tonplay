@@ -1,6 +1,8 @@
 import { TokenManager } from '@/core/TokenManager';
 
-const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
+const BASE_URL = import.meta.env.VITE_API_URL ?? '/api';
+
+let _isRetrying = false;
 
 class ApiError extends Error {
   constructor(
@@ -36,35 +38,40 @@ async function request<T>(
 
   const response = await fetch(url, config);
 
-  // Handle 401: clear token and attempt re-login
-  if (response.status === 401) {
-    TokenManager.clearToken();
-    // Import dynamically to avoid circular dependency
-    const { useAuth } = await import('@/hooks/useAuth');
-    const { login } = useAuth.getState();
-    await login();
+  // Handle 401: clear token and attempt re-login (with recursion guard)
+  if (response.status === 401 && !_isRetrying) {
+    _isRetrying = true;
+    try {
+      TokenManager.clearToken();
+      // Import dynamically to avoid circular dependency
+      const { useAuth } = await import('@/hooks/useAuth');
+      const { login } = useAuth.getState();
+      await login();
 
-    // Retry the request once with new token
-    const retryHeaders: Record<string, string> = {
-      'Content-Type': 'application/json',
-      ...TokenManager.getAuthHeader(),
-    };
+      // Retry the request once with new token
+      const retryHeaders: Record<string, string> = {
+        'Content-Type': 'application/json',
+        ...TokenManager.getAuthHeader(),
+      };
 
-    const retryResponse = await fetch(url, {
-      ...config,
-      headers: retryHeaders,
-    });
+      const retryResponse = await fetch(url, {
+        ...config,
+        headers: retryHeaders,
+      });
 
-    if (!retryResponse.ok) {
-      const errorData = await retryResponse.json().catch(() => null);
-      throw new ApiError(
-        retryResponse.status,
-        errorData?.message ?? `Request failed: ${retryResponse.statusText}`,
-        errorData,
-      );
+      if (!retryResponse.ok) {
+        const errorData = await retryResponse.json().catch(() => null);
+        throw new ApiError(
+          retryResponse.status,
+          errorData?.message ?? `Request failed: ${retryResponse.statusText}`,
+          errorData,
+        );
+      }
+
+      return retryResponse.json() as Promise<T>;
+    } finally {
+      _isRetrying = false;
     }
-
-    return retryResponse.json() as Promise<T>;
   }
 
   if (!response.ok) {

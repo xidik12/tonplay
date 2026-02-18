@@ -29,24 +29,29 @@ interface AuthState {
 export const useAuth = create<AuthState>((set, get) => ({
   user: null,
   isAuthenticated: false,
-  isLoading: true,
+  isLoading: false,
   error: null,
 
   login: async () => {
+    console.log('[useAuth] login() called');
+
     // Check for existing valid token first
     if (!TokenManager.isExpired()) {
       const existing = TokenManager.getToken();
       if (existing) {
+        console.log('[useAuth] Found valid token, fetching profile...');
         try {
-          const profile = await api.get<UserProfile>('/auth/me');
+          const res = await api.get<{ success: boolean; data: UserProfile }>('/user/me');
           set({
-            user: profile,
+            user: res.data,
             isAuthenticated: true,
             isLoading: false,
             error: null,
           });
+          console.log('[useAuth] Restored session from token');
           return;
         } catch {
+          console.log('[useAuth] Token expired/invalid, clearing');
           TokenManager.clearToken();
         }
       }
@@ -55,6 +60,7 @@ export const useAuth = create<AuthState>((set, get) => ({
     // Get initData from Telegram for login
     const bridge = TelegramBridge.getInstance();
     const initData = bridge.getInitData();
+    console.log('[useAuth] initData length:', initData.length, 'empty:', !initData);
 
     if (!initData) {
       // Dev mode: create mock user
@@ -79,23 +85,27 @@ export const useAuth = create<AuthState>((set, get) => ({
     }
 
     set({ isLoading: true, error: null });
+    console.log('[useAuth] Calling /auth/login...');
 
     try {
-      const response = await api.post<{ token: string; user: UserProfile }>(
+      const response = await api.post<{ success: boolean; data: { token: string; user: UserProfile } }>(
         '/auth/login',
         { initData },
       );
+      console.log('[useAuth] Login response:', JSON.stringify(response).substring(0, 200));
 
-      TokenManager.setToken(response.token);
+      const { token, user } = response.data;
+      TokenManager.setToken(token);
       set({
-        user: response.user,
+        user,
         isAuthenticated: true,
         isLoading: false,
         error: null,
       });
+      console.log('[useAuth] Login successful, user:', user.firstName);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Authentication failed';
-      console.error('[useAuth] Login failed:', message);
+      console.error('[useAuth] Login failed:', message, err);
       set({
         user: null,
         isAuthenticated: false,
@@ -119,8 +129,8 @@ export const useAuth = create<AuthState>((set, get) => ({
     if (!get().isAuthenticated) return;
 
     try {
-      const profile = await api.get<UserProfile>('/auth/me');
-      set({ user: profile });
+      const res = await api.get<{ success: boolean; data: UserProfile }>('/user/me');
+      set({ user: res.data });
     } catch (err) {
       console.error('[useAuth] Failed to refresh profile:', err);
     }

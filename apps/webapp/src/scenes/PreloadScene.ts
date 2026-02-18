@@ -1,6 +1,25 @@
 import Phaser from 'phaser';
 import type { GameSlug } from '@tonplay/shared';
 
+/** Map of game slugs to their registered scene keys */
+const SCENE_KEY_MAP: Partial<Record<GameSlug, string>> = {
+  'flappy-rocket': 'FlappyRocketScene',
+  'tower-stack': 'TowerStackScene',
+  'neon-runner': 'NeonRunnerScene',
+  'snake-arena': 'SnakeArenaScene',
+  'pixel-blaster': 'PixelBlasterScene',
+  'fruit-slash': 'FruitSlashScene',
+  'slot-spin': 'SlotSpinScene',
+  'dice-duel': 'DiceDuelScene',
+  'coin-train': 'CoinTrainScene',
+  'coin-dropper': 'CoinDropperScene',
+  'plinko-drop': 'PlinkoDropScene',
+  'bubble-pop': 'BubblePopScene',
+  'block-crush': 'BlockCrushScene',
+  'memory-cards': 'MemoryCardsScene',
+  'rhythm-tap': 'RhythmTapScene',
+};
+
 /**
  * PreloadScene: Loads all shared and game-specific assets.
  * Displays a progress bar during loading, then transitions to the game scene.
@@ -178,27 +197,23 @@ export class PreloadScene extends Phaser.Scene {
       const gameSlug = this.registry.get('gameSlug') as GameSlug | undefined;
 
       if (gameSlug) {
-        // Dynamically start the game scene
-        // For now, emit an event that the game is starting
-        this.game.events.emit('game:started');
+        // Resolve the scene key from the slug
+        const sceneKey = SCENE_KEY_MAP[gameSlug];
 
-        // The game scene would be registered dynamically
-        // For the MVP, we use a placeholder
-        if (this.scene.get('GameScene')) {
-          this.scene.start('GameScene');
+        if (sceneKey && this.scene.get(sceneKey)) {
+          // Start the game scene — it will emit game:ready when its create() finishes
+          this.scene.start(sceneKey);
         } else {
-          console.log(`[PreloadScene] Game scene for '${gameSlug}' not yet implemented.`);
-          // Emit a dummy game over for testing
-          this.time.delayedCall(2000, () => {
-            this.game.events.emit('game:over', {
-              sessionId: 'demo-session',
-              score: Math.floor(Math.random() * 100) + 10,
-              payout: Math.floor(Math.random() * 200),
-              payoutCurrency: 'TICKET',
-              multiplier: 1.0 + Math.random() * 2,
-              serverSeed: 'demo-seed-' + Date.now().toString(36),
-              isVerified: true,
-            });
+          console.error(`[PreloadScene] Game scene '${sceneKey ?? gameSlug}' not registered.`);
+          // Emit error so GamePage can refund
+          this.game.events.emit('game:over', {
+            sessionId: '',
+            score: 0,
+            payout: 0,
+            payoutCurrency: 'TICKET',
+            multiplier: 0,
+            serverSeed: '',
+            isVerified: false,
           });
         }
       }

@@ -3,6 +3,10 @@ import { prisma } from '../config/database.js';
 import { createBullMQConnection } from '../config/redis.js';
 import { updateScore } from '../modules/leaderboard/leaderboard.service.js';
 import { creditTickets } from '../modules/economy/economy.service.js';
+import { updateMissionProgress } from '../modules/social/social.service.js';
+import { addXpToClan } from '../modules/clan/clan.service.js';
+import { addBattlePassXP } from '../modules/progression/progression.service.js';
+import { emitBalanceUpdate, emitLeaderboardUpdate, emitSessionVerified } from '../websocket/handler.js';
 
 interface ScoreVerifyJobData {
   sessionId: string;
@@ -339,17 +343,63 @@ export function createScoreVerifyWorker(): Worker {
 
         // Credit ticket rewards (uses its own transaction)
         if (ticketReward > 0) {
-          await creditTickets(
+          const updatedBalance = await creditTickets(
             data.userId,
             ticketReward,
             'GAME_REWARD',
             `Reward for ${session.game.name} (score: ${data.score})`,
             data.sessionId
           );
+
+          // Emit balance update via WebSocket
+          emitBalanceUpdate(data.userId, {
+            ticketBalance: updatedBalance.ticketBalance,
+            tplayBalance: updatedBalance.tplayBalance,
+            change: {
+              currency: 'TICKET',
+              amount: ticketReward,
+              direction: 'CREDIT',
+              reason: 'Game reward',
+            },
+          });
         }
 
         // Update leaderboard
         await updateScore(session.game.slug, data.userId, data.score);
+
+        // Emit leaderboard update via WebSocket
+        emitLeaderboardUpdate(session.game.slug, 'global', {
+          userId: data.userId,
+          username: null,
+          score: data.score,
+          rank: 0,
+        });
+
+        // Emit session verified via WebSocket
+        emitSessionVerified(data.userId, {
+          sessionId: data.sessionId,
+          status: 'verified',
+          score: data.score,
+          rewards: { ticketReward, xpReward },
+          verificationScore: result.confidence,
+        });
+
+        // Track mission progress
+        await updateMissionProgress(data.userId, 'PLAY_GAMES', 1);
+        if (ticketReward > 0) {
+          await updateMissionProgress(data.userId, 'WIN_GAMES', 1);
+        }
+        await updateMissionProgress(data.userId, 'SCORE_TOTAL', data.score);
+
+        // Add XP to user's clan
+        await addXpToClan(data.userId, xpReward).catch((err) =>
+          console.warn(`[ScoreVerify] addXpToClan failed: ${err.message}`)
+        );
+
+        // Add XP to battle pass progression
+        await addBattlePassXP(data.userId, xpReward).catch((err) =>
+          console.warn(`[ScoreVerify] addBattlePassXP failed: ${err.message}`)
+        );
 
         console.log(
           `[ScoreVerify] Session ${data.sessionId} verified. Awarded ${ticketReward} tickets, ${xpReward} XP`
@@ -372,6 +422,15 @@ export function createScoreVerifyWorker(): Worker {
                 .join('; '),
             },
           },
+        });
+
+        // Emit session rejected via WebSocket
+        emitSessionVerified(data.userId, {
+          sessionId: data.sessionId,
+          status: 'rejected',
+          score: data.score,
+          rewards: null,
+          verificationScore: result.confidence,
         });
 
         console.warn(

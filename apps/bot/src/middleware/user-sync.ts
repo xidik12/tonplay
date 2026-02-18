@@ -63,9 +63,10 @@ export function createUserSyncMiddleware(prisma: PrismaClient) {
       // Attach the DB user record to the context for downstream handlers
       ctx.dbUser = dbUser as BotContext['dbUser'];
     } catch (error) {
-      // Log the error but let the request proceed without a dbUser
-      // Handlers should check for ctx.dbUser existence
-      console.error('User sync failed:', error);
+      console.error('User sync failed for telegram ID:', telegramUser.id, error);
+      // Don't call next() if sync failed — downstream handlers rely on ctx.dbUser
+      await ctx.reply('Something went wrong. Please try again.');
+      return;
     }
 
     await next();

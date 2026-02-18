@@ -177,7 +177,7 @@ export function emitSessionVerified(
 ): void {
   if (!io) return;
 
-  io.to(`user:${userId}`).emit('session:verified', {
+  io.to(`user:${userId}`).emit('game:verified', {
     ...data,
     timestamp: Date.now(),
   });
@@ -198,7 +198,7 @@ export function emitNotification(
 ): void {
   if (!io) return;
 
-  io.to(`user:${userId}`).emit('notification:new', {
+  io.to(`user:${userId}`).emit('notification', {
     ...notification,
     timestamp: Date.now(),
   });
@@ -222,7 +222,7 @@ export function emitBalanceUpdate(
 ): void {
   if (!io) return;
 
-  io.to(`user:${userId}`).emit('economy:balance_update', {
+  io.to(`user:${userId}`).emit('balance:update', {
     ...data,
     timestamp: Date.now(),
   });

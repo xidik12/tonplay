@@ -238,7 +238,7 @@ export class FlappyRocketScene extends BaseGame {
     // Randomize gap center within safe vertical bounds
     const minCenter = this.GAP_MARGIN + this.gapSize / 2;
     const maxCenter = height - this.GAP_MARGIN - this.gapSize / 2;
-    const gapCenter = Phaser.Math.Between(Math.round(minCenter), Math.round(maxCenter));
+    const gapCenter = this.rngBetween(Math.round(minCenter), Math.round(maxCenter));
 
     const pairId = this.obstacles.spawnPair(gapCenter, this.gapSize);
 
@@ -285,13 +285,8 @@ export class FlappyRocketScene extends BaseGame {
     // Brief delay before sending result so the player sees the death animation
     await this.delay(400);
 
-    // Compute result and emit to React layer
-    const result = await this.endGame();
-    this.emitToUI('game:over', {
-      ...result,
-      score: this.score,
-      multiplier: this.calculateMultiplier(),
-    });
+    // Compute result and emit to React layer (endGame handles the game:over emit)
+    await this.endGame();
   }
 
   // ── Asset generation ──────────────────────────────────────────────────────

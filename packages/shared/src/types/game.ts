@@ -133,6 +133,8 @@ export interface GameResult {
   multiplier: number;
   /** Revealed server seed for provable fairness verification */
   serverSeed: string;
+  /** SHA-256 hash of the server seed (committed before gameplay) for client-side verification */
+  serverSeedHash?: string;
   /** Whether the replay passed server-side verification */
   isVerified: boolean;
 }

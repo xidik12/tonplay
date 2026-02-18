@@ -160,37 +160,6 @@ function MissionPanel({ missions }: { missions: UserMission[] }) {
   );
 }
 
-function BottomNav({ active }: { active: string }) {
-  const navigate = useNavigate();
-  const { haptic } = useTelegram();
-
-  const items = [
-    { key: 'home', label: 'Home', path: '/', icon: '\u2302' },
-    { key: 'leaderboard', label: 'Ranks', path: '/leaderboard', icon: '\u2191' },
-    { key: 'profile', label: 'Profile', path: '/profile', icon: '\u2605' },
-  ];
-
-  return (
-    <div className="flex items-center justify-around bg-surface border-t border-surfaceLight safe-bottom py-2">
-      {items.map((item) => (
-        <button
-          key={item.key}
-          onClick={() => {
-            haptic('selection');
-            navigate(item.path);
-          }}
-          className={`flex flex-col items-center gap-0.5 px-6 py-1 transition-colors ${
-            active === item.key ? 'text-primary' : 'text-gray-500'
-          }`}
-        >
-          <span className="text-lg">{item.icon}</span>
-          <span className="text-[10px] font-medium">{item.label}</span>
-        </button>
-      ))}
-    </div>
-  );
-}
-
 export function Lobby() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -350,8 +319,6 @@ export function Lobby() {
         </div>
       </div>
 
-      {/* Bottom navigation */}
-      <BottomNav active="home" />
     </div>
   );
 }

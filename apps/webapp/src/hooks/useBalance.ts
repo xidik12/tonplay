@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { api } from '@/utils/api';
+import { TokenManager } from '@/core/TokenManager';
 
 interface BalanceState {
   tickets: number;
@@ -23,15 +24,21 @@ export const useBalance = create<BalanceState>((set, get) => ({
     const { lastFetched } = get();
     if (lastFetched && Date.now() - lastFetched < 5000) return;
 
+    // Skip if no auth token (dev mode)
+    if (!TokenManager.getToken()) {
+      console.log('[useBalance] No token, skipping balance fetch');
+      return;
+    }
+
     set({ isLoading: true });
 
     try {
-      const data = await api.get<{ ticketBalance: number; tplayBalance: number }>(
+      const res = await api.get<{ success: boolean; data: { ticketBalance: number; tplayBalance: number } }>(
         '/economy/balance',
       );
       set({
-        tickets: data.ticketBalance,
-        tplay: data.tplayBalance,
+        tickets: res.data.ticketBalance,
+        tplay: res.data.tplayBalance,
         isLoading: false,
         lastFetched: Date.now(),
       });

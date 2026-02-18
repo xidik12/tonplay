@@ -15,12 +15,15 @@ const logger = pino({ name: 'cmd:start' });
  */
 export function createStartHandler(prisma: PrismaClient, webAppUrl: string) {
   return async (ctx: BotContext): Promise<void> => {
+    logger.info({ from: ctx.from?.id }, '/start command received');
     const { dbUser } = ctx;
 
     if (!dbUser) {
+      logger.error({ from: ctx.from?.id }, 'dbUser is missing in /start');
       await ctx.reply('Something went wrong. Please try again later.');
       return;
     }
+    logger.info({ userId: dbUser.id, tickets: dbUser.ticketBalance }, 'Sending welcome message');
 
     // --- Referral processing ---
     const startParam = ctx.match; // grammy sets ctx.match for /start <payload>

@@ -60,17 +60,27 @@ export interface User {
  */
 export interface UserStats {
   /** Total number of games played */
-  gamesPlayed: number;
+  totalGamesPlayed: number;
   /** Total amount wagered across all games (in tickets) */
   totalWagered: number;
   /** Total amount won across all games (in tickets) */
   totalWon: number;
-  /** Largest single-game payout (in tickets) */
-  biggestWin: number;
-  /** Slug of the most frequently played game, or null if none */
-  favoriteGame: string | null;
-  /** Win rate as a decimal (0.0 - 1.0) */
+  /** Win rate as a percentage (0-100) */
   winRate: number;
+  /** Highest single-game score */
+  highestScore: number;
+  /** Current daily login/play streak */
+  currentStreak: number;
+  /** Longest streak ever achieved */
+  longestStreak: number;
+  /** Number of referred users */
+  referralCount: number;
+  /** Number of completed missions */
+  missionsCompleted: number;
+  /** Clan name if user belongs to one */
+  clanName: string | null;
+  /** Slug of the most frequently played game, or null if none */
+  favoriteGame?: string | null;
 }
 
 /**
@@ -81,17 +91,15 @@ export interface PublicProfile {
   /** Internal UUID */
   id: string;
   /** Telegram username */
-  username: string;
+  username: string | null;
   /** User's first name */
   firstName: string;
+  /** User's last name */
+  lastName: string | null;
   /** Current level */
   level: number;
   /** Total experience points */
   xp: number;
-  /** Total number of games played */
-  gamesPlayed: number;
-  /** Largest single-game payout */
-  biggestWin: number;
-  /** Clan tag if the user belongs to a clan */
-  clanTag?: string;
+  /** Account creation date */
+  createdAt: string;
 }

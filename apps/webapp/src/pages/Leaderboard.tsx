@@ -133,14 +133,34 @@ export function Leaderboard() {
   const loadLeaderboard = useCallback(async () => {
     setIsLoading(true);
     try {
-      const params = new URLSearchParams({
-        game: gameFilter,
-        period: timeFilter,
-      });
-      const response = await api.get<LeaderboardData>(
-        `/social/leaderboard?${params}`,
+      const slug = gameFilter === 'all' ? 'all' : gameFilter;
+      const period = timeFilter === 'alltime' ? 'global' : timeFilter;
+      const params = new URLSearchParams({ period });
+      const response = await api.get<{ data: LeaderboardEntry[] }>(
+        `/leaderboard/${slug}?${params}`,
       );
-      setData(response);
+      const entries = Array.isArray(response) ? response : (response as any).data ?? [];
+
+      // Fetch user rank separately
+      let userRank: LeaderboardEntry | null = null;
+      try {
+        const rankResponse = await api.get<{ data: { rank: number | null; score: number } }>(
+          `/leaderboard/${slug}/me?period=${period}`,
+        );
+        const rankData = (rankResponse as any).data ?? rankResponse;
+        if (rankData && rankData.rank !== null) {
+          userRank = {
+            rank: rankData.rank,
+            userId: user?.id ?? '',
+            username: user?.username ?? user?.firstName ?? 'You',
+            score: rankData.score,
+          };
+        }
+      } catch {
+        // User rank might not be available
+      }
+
+      setData({ entries, userRank });
     } catch {
       // Use empty data if endpoint not available
       setData({ entries: [], userRank: null });
@@ -148,7 +168,7 @@ export function Leaderboard() {
       setIsLoading(false);
       setIsRefreshing(false);
     }
-  }, [gameFilter, timeFilter]);
+  }, [gameFilter, timeFilter, user]);
 
   const handleRefresh = () => {
     haptic('impact', 'light');

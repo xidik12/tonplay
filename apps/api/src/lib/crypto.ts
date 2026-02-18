@@ -1,4 +1,4 @@
-import { createHash, createHmac, randomBytes } from 'node:crypto';
+import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 
 /**
  * Generates a cryptographically secure random server seed (64 hex chars = 32 bytes).
@@ -71,7 +71,7 @@ export function verifyTelegramInitData(
     const calcBuf = Buffer.from(calculatedHash, 'hex');
     const hashBuf = Buffer.from(hash, 'hex');
 
-    if (!calcBuf.equals(hashBuf)) {
+    if (!timingSafeEqual(calcBuf, hashBuf)) {
       return null;
     }
 

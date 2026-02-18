@@ -45,11 +45,68 @@ export abstract class BaseGame extends Phaser.Scene {
   /** True once the game has ended (collision, timeout, etc.) */
   public isGameOver: boolean = false;
 
+  /** Prevents double-submission of game results */
+  private _hasSubmitted: boolean = false;
+
   /** Game info from the registry */
   protected gameInfo: GameInfo | null = null;
 
   /** Internal frame counter used for replay event timestamps */
   private _frameCount: number = 0;
+
+  // -- Seeded PRNG (provably fair randomness) ---------------------------------
+
+  /**
+   * Deterministic PRNG seeded from combined server+client seed.
+   * Games MUST use this instead of Math.random() for any gameplay-affecting
+   * randomness so the server can reproduce all outcomes during verification.
+   * Falls back to Math.random in dev/local mode.
+   */
+  protected rng: () => number = Math.random;
+
+  /** Create a Mulberry32 PRNG from a 32-bit integer seed */
+  private createMulberry32(seed: number): () => number {
+    let state = seed | 0;
+    return () => {
+      state = (state + 0x6D2B79F5) | 0;
+      let t = Math.imul(state ^ (state >>> 15), 1 | state);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  /** Initialize the seeded PRNG from server and client seeds */
+  private async initSeededRng(): Promise<void> {
+    if (!this.serverSeedHash || !this.clientSeed) return;
+    const combined = await FairnessEngine.combinedSeed(this.serverSeedHash, this.clientSeed);
+    const seed = parseInt(combined.substring(0, 8), 16);
+    this.rng = this.createMulberry32(seed);
+  }
+
+  /** Seeded random integer between min and max (inclusive) */
+  protected rngBetween(min: number, max: number): number {
+    return Math.floor(this.rng() * (max - min + 1)) + min;
+  }
+
+  /** Seeded random float between min and max */
+  protected rngFloat(min: number, max: number): number {
+    return min + this.rng() * (max - min);
+  }
+
+  /** Pick a random element from an array using seeded PRNG */
+  protected rngPick<T>(arr: T[]): T {
+    return arr[Math.floor(this.rng() * arr.length)];
+  }
+
+  /** Fisher-Yates shuffle using seeded PRNG (returns new array) */
+  protected rngShuffle<T>(arr: T[]): T[] {
+    const result = [...arr];
+    for (let i = result.length - 1; i > 0; i--) {
+      const j = Math.floor(this.rng() * (i + 1));
+      [result[i], result[j]] = [result[j], result[i]];
+    }
+    return result;
+  }
 
   // -- Abstract methods every game must implement -----------------------------
 
@@ -76,12 +133,14 @@ export abstract class BaseGame extends Phaser.Scene {
     this.gameInfo = this.registry.get('gameInfo') ?? null;
     this.score = 0;
     this.isGameOver = false;
+    this._hasSubmitted = false;
     this.replayEvents = [];
     this.sessionId = '';
     this.serverSeedHash = '';
     this.clientSeed = '';
     this._frameCount = 0;
     this.startTime = 0;
+    this.rng = Math.random;
   }
 
   // -- Wager lifecycle --------------------------------------------------------
@@ -93,6 +152,7 @@ export abstract class BaseGame extends Phaser.Scene {
   async startWager(amount: number): Promise<void> {
     this.wagerAmount = amount;
     this.isGameOver = false;
+    this._hasSubmitted = false;
 
     try {
       // Step 1: Create a game session on the server
@@ -115,7 +175,10 @@ export abstract class BaseGame extends Phaser.Scene {
         clientSeed: this.clientSeed,
       });
 
-      // Step 4: Start the game
+      // Step 4: Initialize seeded PRNG for provably fair randomness
+      await this.initSeededRng();
+
+      // Step 5: Start the game
       this.startTime = Date.now();
       this.recordEvent('game_start', { wager: amount });
       this.startGame();
@@ -192,7 +255,8 @@ export abstract class BaseGame extends Phaser.Scene {
    * to the server, and emit the result to the React layer.
    */
   async endGame(): Promise<GameResult | null> {
-    if (this.isGameOver) return null;
+    if (this._hasSubmitted) return null;
+    this._hasSubmitted = true;
     this.isGameOver = true;
 
     const multiplier = this.calculateMultiplier();
@@ -213,6 +277,7 @@ export abstract class BaseGame extends Phaser.Scene {
         payoutCurrency: 'TICKET',
         multiplier,
         serverSeed: 'local-seed-' + Date.now().toString(36),
+        serverSeedHash: this.serverSeedHash,
         isVerified: false,
       };
       this.emitToUI('game:over', mockResult);
@@ -220,12 +285,13 @@ export abstract class BaseGame extends Phaser.Scene {
     }
 
     try {
-      // Compress replay data
-      const replayData = JSON.stringify(this.replayEvents);
+      // Compress replay data to base64 for transport
+      const replayJson = JSON.stringify(this.replayEvents);
+      const replayData = btoa(replayJson);
 
-      // Generate replay hash
+      // Generate replay hash from the raw JSON
       const encoder = new TextEncoder();
-      const hashBuffer = await crypto.subtle.digest('SHA-256', encoder.encode(replayData));
+      const hashBuffer = await crypto.subtle.digest('SHA-256', encoder.encode(replayJson));
       const hashArray = Array.from(new Uint8Array(hashBuffer));
       const replayHash = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
 
@@ -240,8 +306,10 @@ export abstract class BaseGame extends Phaser.Scene {
         },
       );
 
-      this.emitToUI('game:over', result);
-      return result;
+      // Enrich result with serverSeedHash for client-side verification
+      const enrichedResult = { ...result, serverSeedHash: this.serverSeedHash };
+      this.emitToUI('game:over', enrichedResult);
+      return enrichedResult;
     } catch (err) {
       console.error('[BaseGame] Failed to submit game result:', err);
 
@@ -253,6 +321,7 @@ export abstract class BaseGame extends Phaser.Scene {
         payoutCurrency: 'TICKET',
         multiplier: 0,
         serverSeed: '',
+        serverSeedHash: this.serverSeedHash,
         isVerified: false,
       };
 
@@ -288,5 +357,19 @@ export abstract class BaseGame extends Phaser.Scene {
     if (!this.isGameOver && this.startTime) {
       this._frameCount++;
     }
+  }
+
+  /**
+   * Cleanup when the scene is shut down (e.g. game destroyed).
+   * Removes input listeners and timers to prevent memory leaks
+   * and errors from async operations referencing destroyed objects.
+   */
+  shutdown(): void {
+    this.input.removeAllListeners();
+    if (this.input.keyboard) {
+      this.input.keyboard.removeAllListeners();
+    }
+    this.tweens.killAll();
+    this.time.removeAllEvents();
   }
 }

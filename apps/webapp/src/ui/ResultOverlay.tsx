@@ -118,11 +118,11 @@ export function ResultOverlay({
   const netProfit = result.payout - wagerAmount;
 
   useEffect(() => {
-    // Verify the server seed on mount
-    if (result.serverSeed) {
-      FairnessEngine.verifyServerSeed(result.serverSeed, '').then(setVerified);
+    // Client-side verification: hash the revealed server seed and compare against the committed hash
+    if (result.serverSeed && result.serverSeedHash) {
+      FairnessEngine.verifyServerSeed(result.serverSeed, result.serverSeedHash).then(setVerified);
     }
-  }, [result.serverSeed]);
+  }, [result.serverSeed, result.serverSeedHash]);
 
   return (
     <div className="absolute inset-0 z-30 bg-darker/95 backdrop-blur-sm flex flex-col items-center justify-center safe-top safe-bottom animate-fade-in">
@@ -221,11 +221,17 @@ export function ResultOverlay({
               <div className="flex items-center gap-1 pt-1">
                 <span
                   className={`w-2 h-2 rounded-full ${
-                    result.isVerified ? 'bg-green-400' : 'bg-red-400'
+                    verified === true ? 'bg-green-400' : verified === false ? 'bg-red-400' : 'bg-yellow-400'
                   }`}
                 />
                 <span className="text-[10px] text-gray-400">
-                  {result.isVerified ? 'Verified' : 'Pending verification'}
+                  {verified === true
+                    ? 'Seed verified'
+                    : verified === false
+                      ? 'Seed mismatch'
+                      : result.isVerified
+                        ? 'Server verified'
+                        : 'Pending verification'}
                 </span>
               </div>
             </div>

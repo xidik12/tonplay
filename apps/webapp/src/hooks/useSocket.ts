@@ -8,7 +8,7 @@ import type {
   LeaderboardUpdatePayload,
 } from '@tonplay/shared';
 
-const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
+const API_URL = import.meta.env.VITE_API_URL ?? window.location.origin;
 
 interface UseSocketOptions {
   enabled?: boolean;
@@ -20,6 +20,12 @@ export function useSocket(options: UseSocketOptions = {}) {
   const { enabled = true, onNotification, onLeaderboardUpdate } = options;
   const socketRef = useRef<Socket | null>(null);
   const setBalance = useBalance((s) => s.setBalance);
+
+  // Store callbacks in refs so they don't cause socket reconnections
+  const onNotificationRef = useRef(onNotification);
+  onNotificationRef.current = onNotification;
+  const onLeaderboardUpdateRef = useRef(onLeaderboardUpdate);
+  onLeaderboardUpdateRef.current = onLeaderboardUpdate;
 
   useEffect(() => {
     if (!enabled) return;
@@ -54,21 +60,21 @@ export function useSocket(options: UseSocketOptions = {}) {
       setBalance(payload.ticketBalance, payload.tplayBalance);
     });
 
-    // Handle notifications
+    // Handle notifications (via ref to avoid reconnection on callback change)
     socket.on('notification', (payload: NotificationPayload) => {
-      onNotification?.(payload);
+      onNotificationRef.current?.(payload);
     });
 
-    // Handle leaderboard updates
+    // Handle leaderboard updates (via ref to avoid reconnection on callback change)
     socket.on('leaderboard:update', (payload: LeaderboardUpdatePayload) => {
-      onLeaderboardUpdate?.(payload);
+      onLeaderboardUpdateRef.current?.(payload);
     });
 
     return () => {
       socket.disconnect();
       socketRef.current = null;
     };
-  }, [enabled, setBalance, onNotification, onLeaderboardUpdate]);
+  }, [enabled, setBalance]);
 
   const subscribe = useCallback((leaderboardId: string) => {
     socketRef.current?.emit('leaderboard:subscribe', { leaderboardId });

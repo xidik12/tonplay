@@ -2,6 +2,7 @@ import { prisma } from '../../config/database.js';
 import { redis } from '../../config/redis.js';
 import { generateServerSeed, hashSeed, sha256 } from '../../lib/crypto.js';
 import { AppError } from '../../middleware/error-handler.js';
+import { updateMissionProgress } from '../social/social.service.js';
 import { Queue, type ConnectionOptions } from 'bullmq';
 import { createBullMQConnection } from '../../config/redis.js';
 
@@ -211,6 +212,11 @@ export async function startSession(
     return newSession;
   });
 
+  // Track SPEND_TICKETS mission
+  if (wagerAmount > 0) {
+    await updateMissionProgress(userId, 'SPEND_TICKETS', wagerAmount);
+  }
+
   return {
     sessionId: session.id,
     serverSeedHash: session.serverSeedHash,
@@ -380,4 +386,75 @@ export async function getSessionDetails(
     completedAt: session.completedAt,
     verifiedAt: session.verifiedAt,
   };
+}
+
+/**
+ * Lists recent game sessions for a user.
+ */
+export async function listUserSessions(userId: string, limit: number = 10) {
+  const sessions = await prisma.gameSession.findMany({
+    where: { userId },
+    include: { game: { select: { slug: true, name: true } } },
+    orderBy: { startedAt: 'desc' },
+    take: Math.min(limit, 50),
+  });
+  return sessions.map(s => ({
+    id: s.id,
+    gameSlug: s.game.slug,
+    gameName: s.game.name,
+    status: s.status,
+    wagerAmount: s.wagerAmount,
+    score: s.score,
+    rewards: s.rewards,
+    startedAt: s.startedAt,
+  }));
+}
+
+/**
+ * Abandons a game session (pending or active).
+ * Refunds the wager and marks the session as rejected.
+ */
+export async function abandonSession(userId: string, sessionId: string): Promise<{ status: string }> {
+  await prisma.$transaction(async (tx) => {
+    const session = await tx.gameSession.findUnique({ where: { id: sessionId } });
+    if (!session) throw AppError.notFound('Game session');
+    if (session.userId !== userId) throw AppError.forbidden('This is not your session');
+    if (!['pending', 'active'].includes(session.status)) {
+      throw AppError.gameSessionInvalid(`Session cannot be abandoned from status "${session.status}"`);
+    }
+
+    await tx.gameSession.update({
+      where: { id: sessionId },
+      data: { status: 'rejected', verifiedAt: new Date() },
+    });
+
+    // Refund wager atomically within the same transaction
+    if (session.wagerAmount > 0) {
+      const user = await tx.user.findUnique({
+        where: { id: userId },
+        select: { ticketBalance: true },
+      });
+      if (!user) throw AppError.notFound('User');
+
+      await tx.user.update({
+        where: { id: userId },
+        data: { ticketBalance: { increment: session.wagerAmount } },
+      });
+
+      await tx.transaction.create({
+        data: {
+          userId,
+          type: 'GAME_REFUND',
+          currency: 'TICKET',
+          amount: session.wagerAmount,
+          direction: 'CREDIT',
+          balanceBefore: user.ticketBalance,
+          balanceAfter: user.ticketBalance + session.wagerAmount,
+          memo: 'Session abandoned by player',
+        },
+      });
+    }
+  });
+
+  return { status: 'abandoned' };
 }

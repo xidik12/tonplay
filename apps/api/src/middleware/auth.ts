@@ -1,6 +1,7 @@
 import fp from 'fastify-plugin';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import type { JwtPayload } from '../types/index.js';
+import { prisma } from '../config/database.js';
 
 /**
  * Fastify plugin that registers a JWT authentication decorator.
@@ -13,6 +14,22 @@ export const authPlugin = fp(async function authPlugin(app: FastifyInstance): Pr
       try {
         const decoded = await request.jwtVerify<JwtPayload>();
         request.user = decoded;
+
+        // Check ban status
+        const user = await prisma.user.findUnique({
+          where: { id: decoded.userId },
+          select: { isBanned: true },
+        });
+        if (user?.isBanned) {
+          reply.status(403).send({
+            success: false,
+            error: {
+              code: 'FORBIDDEN',
+              message: 'Account is banned',
+            },
+          });
+          return;
+        }
       } catch (err) {
         reply.status(401).send({
           success: false,
@@ -45,8 +62,19 @@ export async function requireNotBanned(
     return;
   }
 
-  // The ban check is done at the service layer since we need a DB call.
-  // This is a placeholder for middleware-level ban enforcement if needed.
+  const user = await prisma.user.findUnique({
+    where: { id: request.user.userId },
+    select: { isBanned: true },
+  });
+  if (user?.isBanned) {
+    reply.status(403).send({
+      success: false,
+      error: {
+        code: 'FORBIDDEN',
+        message: 'Account is banned',
+      },
+    });
+  }
 }
 
 /**
