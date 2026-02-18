@@ -17,9 +17,15 @@ RUN pnpm install --frozen-lockfile
 COPY packages/shared packages/shared
 COPY apps/bot apps/bot
 
+# Copy prisma schema from API (bot uses @prisma/client directly)
+COPY apps/api/prisma apps/bot/prisma/
+
 # Build
 RUN pnpm --filter @tonplay/shared run build
 RUN pnpm --filter @tonplay/bot run build
+
+# Generate Prisma client using the API schema
+RUN cd apps/bot && pnpm exec prisma generate --schema=prisma/schema.prisma
 
 WORKDIR /app/apps/bot
 EXPOSE 3001

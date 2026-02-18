@@ -11,16 +11,17 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@tonplay/shared": "workspace:*",
-    "grammy": "^1.31.0",
     "@grammyjs/menu": "^1.2.0",
     "@prisma/client": "^6.3.0",
+    "@tonplay/shared": "workspace:*",
+    "grammy": "^1.31.0",
     "ioredis": "^5.4.0",
     "pino": "^9.6.0"
   },
   "devDependencies": {
+    "@types/node": "^22.0.0",
+    "prisma": "^6.3.0",
     "tsx": "^4.19.0",
-    "typescript": "^5.7.0",
-    "@types/node": "^22.0.0"
+    "typescript": "^5.7.0"
   }
 }
