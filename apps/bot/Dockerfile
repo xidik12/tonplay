@@ -1,5 +1,5 @@
 # ── TONPLAY Bot Service ──────────────────────────────────────────────────────
-FROM node:20-alpine AS base
+FROM node:20-alpine
 RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
 WORKDIR /app
 
@@ -20,19 +20,6 @@ COPY apps/bot apps/bot
 # Build
 RUN pnpm --filter @tonplay/shared run build
 RUN pnpm --filter @tonplay/bot run build
-
-# ── Production stage ─────────────────────────────────────────────────────────
-FROM node:20-alpine
-RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
-WORKDIR /app
-
-COPY --from=base /app/pnpm-lock.yaml /app/pnpm-workspace.yaml /app/package.json /app/turbo.json ./
-COPY --from=base /app/packages/shared/package.json packages/shared/
-COPY --from=base /app/packages/shared/dist packages/shared/dist
-COPY --from=base /app/apps/bot/package.json apps/bot/
-COPY --from=base /app/apps/bot/dist apps/bot/dist
-
-RUN pnpm install --frozen-lockfile --prod
 
 WORKDIR /app/apps/bot
 EXPOSE 3001
