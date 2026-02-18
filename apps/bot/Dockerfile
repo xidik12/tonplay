@@ -10,15 +10,18 @@ COPY pnpm-lock.yaml pnpm-workspace.yaml package.json turbo.json tsconfig.base.js
 COPY packages/shared/package.json packages/shared/
 COPY apps/bot/package.json apps/bot/
 
-# Install dependencies
-RUN pnpm install --frozen-lockfile
+# Install dependencies (ignore scripts to avoid prisma postinstall issues)
+RUN pnpm install --frozen-lockfile --ignore-scripts
+
+# Manually run necessary postinstall scripts
+RUN node node_modules/esbuild/install.js 2>/dev/null || true
+
+# Copy prisma schema from API (bot uses @prisma/client)
+COPY apps/api/prisma apps/bot/prisma/
 
 # Copy source code
 COPY packages/shared packages/shared
 COPY apps/bot apps/bot
-
-# Copy prisma schema from API (bot uses @prisma/client directly)
-COPY apps/api/prisma apps/bot/prisma/
 
 # Build
 RUN pnpm --filter @tonplay/shared run build
