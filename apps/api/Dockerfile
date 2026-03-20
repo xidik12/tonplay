@@ -14,7 +14,7 @@ COPY apps/api/package.json apps/api/
 COPY apps/api/prisma apps/api/prisma/
 
 # Install all dependencies (including devDependencies for build)
-RUN pnpm install --frozen-lockfile --dev
+RUN pnpm install --no-frozen-lockfile
 
 # Copy source code
 COPY packages/shared packages/shared
