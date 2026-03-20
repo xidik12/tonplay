@@ -14,7 +14,9 @@ COPY apps/api/package.json apps/api/
 COPY apps/api/prisma apps/api/prisma/
 
 # Install all dependencies (including devDependencies for build)
+ENV NODE_ENV=development
 RUN pnpm install --no-frozen-lockfile
+ENV NODE_ENV=production
 
 # Copy source code
 COPY packages/shared packages/shared
